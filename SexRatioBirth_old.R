@@ -20,152 +20,23 @@ rm(list = ls())
 # Packages
 # install.packages("snowfall")
 # install.packages("parallel")
-# install.packages(c("snowfall","parallel","RColorBrewer"), Ncpus=2)
-
 library(snowfall)
 library(parallel)
+
+
 
 # Set the working directory for the code and the subfolders 'Data' and 'Sensitivity'
 setwd(".")
 
-
-
-#### Try a testrun #######################################################################
-# Temporarily disable everything below this point
-if (FALSE) {
-## Define globals used by FunctionsSRB.R BEFORE sourcing it
-iniYear   <- 1980
-niter     <- 10              # for smoke test
-minAge    <- 15
-maxAge    <- 50
-cohortLen <- 5
-periodStudy <- seq(iniYear, iniYear + niter - 1, 1)
-cohortNames <- seq(iniYear - maxAge,
-                   iniYear + trunc(niter / cohortLen, 0) * cohortLen,
-                   cohortLen)
-
-sensitivity <- FALSE
-model <- "Empirical"
-country <- "Korea"
-
-iniPop    <- 50000
-startYear <- 1945
-nsim      <- 2
-srb       <- 0.5122
-
-alphaPar <- 0.075; gammaPar <- 0.20
-rhoPar   <- 0.50;  phiPar   <- 7
-sigmaPar <- 1.70;  betaPar  <- 0.20
-
-inputData     <- get.data(country)
-spData        <- funcSonPref(country)
-sonPrefMx     <- spData$sonPrefMx
-sonPrefTheory <- spData$sonPrefTheory
-startPop      <- initialization(iniPop, startYear)
-
-# Quick error fixes for a test run
-fertMod <- 1   # use the standard UN fertility schedule (“fertility5”)
-sonTheoPar <- 1L      # dummy value; only used in Theory mode
-
-#
-ncpus <- min(detectCores(), 2)
-sfInit(parallel = TRUE, cpus = ncpus)
-sfExport("iniYear","nsim","niter","srb","minAge","maxAge",
-         "alphaPar","gammaPar","rhoPar","phiPar","sigmaPar","betaPar",
-         "cohortLen","periodStudy","cohortNames","startPop","inputData",
-         "sonPrefMx","sonPrefTheory","model","country",
-         "sensitivity","fertMod","sonTheoPar")
-sfSource("Code/FunctionsSRB.R")
-
-Start <- Sys.time()
-out <- sfLapply(1:ncpus, run.simulations)
-End <- Sys.time(); print(End-Start)
-sfStop()
-
-# dir.create("SimulationResults", showWarnings = FALSE)
-fileName <- "Korea_SMOKETEST"
-save(out, file = file.path("SimulationResults", paste0(fileName,".RData")))
-cat("Saved:", file.path("SimulationResults", paste0(fileName,".RData")), "\n")
-
-
-## Visual Check for Testrun ##
-# 1) Load your smoke-test results
-load("SimulationResults/Korea_SMOKETEST.RData")
-
-# 2) Build SRB and TFR matrices from 'out' (works for any niter)
-#    SRB in boys per 100 girls = p/(1-p) * 100, where p = propBoys
-srb_runs <- lapply(out, function(z) t((z$propBoys / (1 - z$propBoys)) * 100))
-srb_mat  <- do.call(rbind, srb_runs)
-
-# Years are the rownames of propBoys
-years <- as.integer(rownames(out[[1]]$propBoys))
-
-# TFR is either in $TFR (non-sensitivity) or embedded in fertilityData
-tfr_runs <- lapply(out, function(z) {
-  if (!is.null(z$TFR)) {
-    t(z$TFR)
-  } else {
-    # fallback if needed
-    t(z$fertilityData[, ncol(z$fertilityData), , drop = FALSE])
-  }
-})
-tfr_mat <- do.call(rbind, tfr_runs)
-
-# 3) Smooth and compute means/quantiles
-ma <- function(x, n=5) stats::filter(x, rep(1/n, n), sides = 2)
-
-srb_ma <- t(apply(srb_mat, 1, ma))
-tfr_ma <- t(apply(tfr_mat, 1, ma))
-
-srb_mean <- apply(srb_ma, 2, mean, na.rm = TRUE)
-srb_q10  <- apply(srb_ma, 2, quantile, 0.10, na.rm = TRUE)
-srb_q90  <- apply(srb_ma, 2, quantile, 0.90, na.rm = TRUE)
-
-tfr_mean <- apply(tfr_ma, 2, mean, na.rm = TRUE)
-tfr_q10  <- apply(tfr_ma, 2, quantile, 0.10, na.rm = TRUE)
-tfr_q90  <- apply(tfr_ma, 2, quantile, 0.90, na.rm = TRUE)
-
-# 4) Plots
-library(RColorBrewer)
-cols <- brewer.pal(8, "Greys")
-ni <- c(1, 2, length(years)-1, length(years))  # trim MA edge NAs if present
-ni <- ni[ni >= 1 & ni <= length(years)]        # guard for very short series
-
-# SRB
-plot(years, srb_mean, type = "n", ylim = c(104, 118),
-     xlab = "Year", ylab = "SRB (boys per 100 girls)", frame.plot = FALSE)
-grid(lwd = 2)
-if (length(years) > 4) {
-  polygon(c(years[-ni], rev(years[-ni])),
-          c(srb_q10[-ni], rev(srb_q90[-ni])),
-          col = cols[4], border = NA)
-}
-lines(years, srb_mean, lwd = 3, col = cols[7])
-title("South Korea — Simulated SRB (smoke test)")
-
-# TFR
-plot(years, tfr_mean, type = "n",
-     ylim = range(tfr_q10, tfr_q90, na.rm = TRUE),
-     xlab = "Year", ylab = "TFR", frame.plot = FALSE)
-grid(lwd = 2)
-if (length(years) > 4) {
-  polygon(c(years[-ni], rev(years[-ni])),
-          c(tfr_q10[-ni], rev(tfr_q90[-ni])),
-          col = cols[4], border = NA)
-}
-lines(years, tfr_mean, lwd = 3, col = cols[7])
-title("South Korea — Simulated TFR (smoke test)")
-
-### End of test run ############################################################ 
-}
-
-
+# Source code with functions (should be in the working directory stated above)
+source("FunctionsSRB.R")
+ 
 
 ###########################################################
 ### 2)  INITIAL PARAMETERS                              ###  
 ###########################################################
 
-# SENSITIVITY: TRUE to carry out sensitivity analysis
+# SENSITIVITY: TRUE to carry out sensitivity anlysis
 sensitivity <- FALSE
 # sensitivity <- TRUE
 
@@ -236,16 +107,14 @@ periodStudy <- seq(iniYear, iniYear + niter - 1, 1)
 cohortLen <- 5
 cohortNames <- seq(iniYear-maxAge, iniYear+trunc(niter/cohortLen,0)*cohortLen, cohortLen)
 
-# Source code 
-source("Code/FunctionsSRB.R")
 
 ###########################################################
 ### 3)  DATA AND INITIAILIZATION OF THE MODEL           ###  
 ###########################################################
 
 # COUNTRY: Data from 2 countries are available to run the model: South Korea and India
-country <- "Korea"
-# country <- "India"
+#country <- "Korea"
+country <- "India"
 
 # INPUT DATA: Female Population, Fertility rates, and death rates
 inputData <- get.data(country)
@@ -315,7 +184,7 @@ sfExport("iniYear", "nsim", "niter", "srb", "minAge", "maxAge", "alphaPar",
          "sonPrefTheory", "model", "sonTheoPar", "fertMod", "sensitivity")
 
 # Run common prep functions on all cpus:
-sfSource("Code/FunctionsSRB.R")
+sfSource("FunctionsSRB.R")
 
 # Run process in cpus for "niter" iterations:
 Start <- Sys.time()
@@ -337,10 +206,7 @@ sfStop()
 fileName <- "NameOfTheOuputFile"
 
 # Save Output of the Simulations in an RData file
-#save(out, file = paste(fileName, ".RData", sep = ""))
-
-save(out, file = file.path("SimulationResults", paste0(fileName,".RData")))
-cat("Saved:", file.path("SimulationResults", paste0(fileName,".RData")), "\n")
+save(out, file = paste(fileName, ".RData", sep = ""))
 
 
 ###########################################################
@@ -553,245 +419,3 @@ legend(x =2000, y = 120, col = "black",
        cex = 0.7, bty = "n")
 #dev.off()
 
-#####################################################################
-############### the case of India 1 ###################################
-#####################################################################
-# Clear workspace
-rm(list = ls())
-
-
-library(snowfall)
-library(parallel)
-
-
-
-# --- core model toggles ---
-sensitivity <- FALSE
-model <- "Empirical"
-country <- "India"
-
-# --- simulation settings (small–moderate load first) ---
-iniYear   <- 1980
-niter     <- 60       # 1980–2039
-iniPop    <- 100000   # starting synthetic population
-startYear <- 1945
-nsim      <- 10       # number of stochastic replications per CPU
-srb       <- 0.5122   # baseline SRB (≈105 boys per 100 girls)
-
-# --- global constants ---
-minAge <- 15
-maxAge <- 50
-cohortLen <- 5
-periodStudy <- seq(iniYear, iniYear + niter - 1, 1)
-cohortNames <- seq(iniYear - maxAge,
-                   iniYear + trunc(niter / cohortLen, 0) * cohortLen,
-                   cohortLen)
-
-# --- fertility schedule selector ---
-fertMod <- 1    # use “fertility5” (UN standard decline)
-
-# --- theoretical dummy (not used here but required) ---
-sonTheoPar <- 1L
-
-# --- source function definitions ---
-source("Code/FunctionsSRB.R")
-
-
-# 2) Parameters -------------------------------------------
-
-n <- 1
-alphaPar <- rep(0.075, n)   # parity scaling
-gammaPar <- rep(0.35,  n)   # extra fertility if no son
-rhoPar   <- rep(0.30,  n)   # technology diffusion slope
-phiPar   <- rep(11,    n)   # technology diffusion midpoint
-sigmaPar <- rep(1.0,   n)   # abortion probability scaling
-betaPar  <- rep(0.10,  n)   # readiness scaling
-
-# 3) Load data & initialize -------------------------------
-inputData     <- get.data(country)
-spData        <- funcSonPref(country)
-sonPrefMx     <- spData$sonPrefMx
-sonPrefTheory <- spData$sonPrefTheory
-startPop      <- initialization(iniPop, startYear)
-
-# 4) Parallel computing setup -----------------------------
-ncpus <- min(detectCores(), 4)  # adjust if you want more
-sfInit(parallel = TRUE, cpus = ncpus)
-sfExport("iniYear","nsim","niter","srb","minAge","maxAge",
-         "alphaPar","gammaPar","rhoPar","phiPar","sigmaPar","betaPar",
-         "cohortLen","periodStudy","cohortNames","startPop","inputData",
-         "sonPrefMx","sonPrefTheory","model","country",
-         "sensitivity","fertMod","sonTheoPar")
-sfSource("Code/FunctionsSRB.R")
-
-# 5) Run simulations --------------------------------------
-Start <- Sys.time()
-out <- sfLapply(1:ncpus, run.simulations)
-End <- Sys.time(); print(End - Start)
-sfStop()
-
-# 6) Save results -----------------------------------------
-dir.create("SimulationResults", showWarnings = FALSE)
-fileName <- "India_Empirical_newPar_nsim10"
-save_path <- file.path("SimulationResults", paste0(fileName, ".RData"))
-save(out, file = save_path)
-cat("Saved simulation output to:", save_path, "\n")
-
-# 7) Quick check ------------------------------------------
-load(save_path)
-str(out, max.level = 1)
-
-# 8) Plots 
-library(RColorBrewer)
-dat <- extractdata_all("India_Empirical_newPar_nsim10", "empirical")
-
-years <- 1980:(1980 + 59)
-srb_mat <- as.matrix(dat[, paste0("srb", years)])
-srb_ma  <- t(apply(srb_mat, 1, ma))
-srb_mean <- apply(srb_ma, 2, mean, na.rm = TRUE)
-srb_q10  <- apply(srb_ma, 2, quantile, 0.10, na.rm = TRUE)
-srb_q90  <- apply(srb_ma, 2, quantile, 0.90, na.rm = TRUE)
-cols <- brewer.pal(8, "Greys")
-ni <- c(1,2,length(years)-1,length(years))
-
-plot(years, srb_mean, type = "n", ylim = c(104,118),
-     xlab = "Year", ylab = "SRB (boys per 100 girls)", frame.plot = FALSE)
-grid(lwd = 2)
-polygon(c(years[-ni], rev(years[-ni])),
-        c(srb_q10[-ni], rev(srb_q90[-ni])), col = cols[4], border = NA)
-lines(years, srb_mean, lwd = 3, col = cols[7])
-title("India — Simulated SRB (Empirical model)")
-
-#####################################################################
-############### the case of India 2 ###################################
-#####################################################################
-
-#Multiple set of scenarios 
-
-model   <- "Empirical"
-country <- "India"
-niter   <- 60
-iniPop  <- 100000
-nsim    <- 8
-# India-appropriate scenarios (start with 3–4)
-alphaPar <- c(0.075,0.075,0.075,0.075)
-gammaPar <- c(0.30,0.35,0.40,0.30)
-rhoPar   <- c(0.30,0.30,0.25,0.35)
-phiPar   <- c(11,12,12,10)
-sigmaPar <- c(1.0,0.9,1.2,1.1)
-betaPar  <- c(0.10,0.10,0.08,0.12)
-
-ncpus <- min(detectCores(), length(alphaPar))
-nsim  <- max(1, floor(nsim / ncpus))  # split simulations across cores
-
-# re-run the same pipeline and save:
-fileName <- "India_Scenarios_K4"
-
-
-#####################################################################
-############### the case of Vietnam 1 ###################################
-#####################################################################
-# Clear workspace
-rm(list = ls())
-
-library(snowfall)
-library(parallel)
-
-# --- core model toggles ---
-model   <- "Empirical"
-country <- "Vietnam"
-niter   <- 60
-iniPop  <- 100000
-nsim    <- 8
-
-alphaPar <- 0.075
-gammaPar <- 0.27
-rhoPar   <- 0.45
-phiPar   <- 17
-sigmaPar <- 1.4
-betaPar  <- 0.17
-
-ncpus <- min(detectCores(), 4)
-# re-run pipeline, save:
-fileName <- "Vietnam_SeedRun"
-
-# --- simulation settings (small–moderate load first) ---
-iniYear   <- 1980
-niter     <- 60       # 1980–2039
-iniPop    <- 100000   # starting synthetic population
-startYear <- 1945
-nsim      <- 10       # number of stochastic replications per CPU
-srb       <- 0.5122   # baseline SRB (≈105 boys per 100 girls)
-
-# --- global constants ---
-minAge <- 15
-maxAge <- 50
-cohortLen <- 5
-periodStudy <- seq(iniYear, iniYear + niter - 1, 1)
-cohortNames <- seq(iniYear - maxAge,
-                   iniYear + trunc(niter / cohortLen, 0) * cohortLen,
-                   cohortLen)
-
-# --- fertility schedule selector ---
-fertMod <- 1    # use “fertility5” (UN standard decline)
-
-# --- theoretical dummy (not used here but required) ---
-sonTheoPar <- 1L
-
-# --- source function definitions ---
-source("Code/FunctionsSRB.R")
-
-# 3) Load data & initialize -------------------------------
-inputData     <- get.data(country)
-spData        <- funcSonPref(country)
-sonPrefMx     <- spData$sonPrefMx
-sonPrefTheory <- spData$sonPrefTheory
-startPop      <- initialization(iniPop, startYear)
-
-# 4) Parallel computing setup -----------------------------
-ncpus <- min(detectCores(), 4)  # adjust if you want more
-sfInit(parallel = TRUE, cpus = ncpus)
-sfExport("iniYear","nsim","niter","srb","minAge","maxAge",
-         "alphaPar","gammaPar","rhoPar","phiPar","sigmaPar","betaPar",
-         "cohortLen","periodStudy","cohortNames","startPop","inputData",
-         "sonPrefMx","sonPrefTheory","model","country",
-         "sensitivity","fertMod","sonTheoPar")
-sfSource("Code/FunctionsSRB.R")
-
-# 5) Run simulations --------------------------------------
-Start <- Sys.time()
-out <- sfLapply(1:ncpus, run.simulations)
-End <- Sys.time(); print(End - Start)
-sfStop()
-
-# 6) Save results -----------------------------------------
-dir.create("SimulationResults", showWarnings = FALSE)
-fileName <- "India_Empirical_newPar_nsim10"
-save_path <- file.path("SimulationResults", paste0(fileName, ".RData"))
-save(out, file = save_path)
-cat("Saved simulation output to:", save_path, "\n")
-
-# 7) Quick check ------------------------------------------
-load(save_path)
-str(out, max.level = 1)
-
-# 8) Plots 
-library(RColorBrewer)
-dat <- extractdata_all("Vietnam_Empirical_newPar_nsim10", "empirical")
-
-years <- 1980:(1980 + 59)
-srb_mat <- as.matrix(dat[, paste0("srb", years)])
-srb_ma  <- t(apply(srb_mat, 1, ma))
-srb_mean <- apply(srb_ma, 2, mean, na.rm = TRUE)
-srb_q10  <- apply(srb_ma, 2, quantile, 0.10, na.rm = TRUE)
-srb_q90  <- apply(srb_ma, 2, quantile, 0.90, na.rm = TRUE)
-cols <- brewer.pal(8, "Greys")
-ni <- c(1,2,length(years)-1,length(years))
-
-plot(years, srb_mean, type = "n", ylim = c(104,118),
-     xlab = "Year", ylab = "SRB (boys per 100 girls)", frame.plot = FALSE)
-grid(lwd = 2)
-polygon(c(years[-ni], rev(years[-ni])),
-        c(srb_q10[-ni], rev(srb_q90[-ni])), col = cols[4], border = NA)
-lines(years, srb_mean, lwd = 3, col = cols[7])
-title("Vietnam — Simulated SRB (Empirical model)")
