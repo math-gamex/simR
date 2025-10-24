@@ -18,15 +18,12 @@ jobs:
       - name: Setup R
         uses: r-lib/actions/setup-r@v2
         with:
-          r-version: '4.3.2'   # 필요시 변경 가능
+          r-version: '4.3.2'   # 필요 시 변경
 
       - name: Show R session info
-        run: |
-          R -q -e 'sessionInfo()'
+        run: R -q -e 'sessionInfo()'
 
-      # ✅ 필요한 패키지들을 CRAN에서 설치 (pak/lockfile 미사용)
-      #    - snowfall/snow 설치 (Rmpi는 불필요)
-      #    - future.apply, matrixStats, data.table, qs 등
+      # 필요한 CRAN 패키지 설치 (pak/lockfile 미사용)
       - name: Install CRAN packages
         run: |
           R -q -e 'install.packages(c(
@@ -35,24 +32,23 @@ jobs:
             "future.apply",
             "matrixStats",
             "data.table",
-            "qs"
+            "qs",
+            "RColorBrewer"   # ← 로그 에러 해결: plotting에서 필요
           ), repos=Sys.getenv("CRAN"))'
 
       # (선택) 결과 폴더가 필요하다면 미리 생성
       - name: Ensure results dir
-        run: |
-          mkdir -p SimulationResults
+        run: mkdir -p SimulationResults
 
-      # 🎯 시뮬 실행
+      # 시뮬 실행
       - name: Run SexRatioBirth.R
-        run: |
-          Rscript SexRatioBirth.R
+        run: Rscript SexRatioBirth.R
         env:
           # 필요시 환경변수로 파라미터 전달 가능 (예: NSIM 등)
           # NSIM: "1000"
           R_ENVIRON_USER: ""
 
-      # 📦 결과 업로드 (없어도 실패하지 않게 warn)
+      # 결과 업로드 (없어도 실패하지 않게 warn)
       - name: Upload simulation artifacts
         uses: actions/upload-artifact@v4
         with:
