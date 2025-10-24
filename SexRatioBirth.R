@@ -75,7 +75,7 @@ sfExport("iniYear","nsim","niter","srb","minAge","maxAge",
          "cohortLen","periodStudy","cohortNames","startPop","inputData",
          "sonPrefMx","sonPrefTheory","model","country",
          "sensitivity","fertMod","sonTheoPar")
-#sfSource("Code/FunctionsSRB.R")
+
 sfSource("FunctionsSRB.R")
 
 Start <- Sys.time()
@@ -238,7 +238,7 @@ cohortLen <- 5
 cohortNames <- seq(iniYear-maxAge, iniYear+trunc(niter/cohortLen,0)*cohortLen, cohortLen)
 
 # Source code 
-source("Code/FunctionsSRB.R")
+source("FunctionsSRB.R")
 
 ###########################################################
 ### 3)  DATA AND INITIAILIZATION OF THE MODEL           ###  
@@ -316,7 +316,7 @@ sfExport("iniYear", "nsim", "niter", "srb", "minAge", "maxAge", "alphaPar",
          "sonPrefTheory", "model", "sonTheoPar", "fertMod", "sensitivity")
 
 # Run common prep functions on all cpus:
-sfSource("Code/FunctionsSRB.R")
+sfSource("FunctionsSRB.R")
 
 # Run process in cpus for "niter" iterations:
 Start <- Sys.time()
@@ -595,7 +595,7 @@ fertMod <- 1    # use “fertility5” (UN standard decline)
 sonTheoPar <- 1L
 
 # --- source function definitions ---
-source("Code/FunctionsSRB.R")
+source("FunctionsSRB.R")
 
 
 # 2) Parameters -------------------------------------------
@@ -623,7 +623,8 @@ sfExport("iniYear","nsim","niter","srb","minAge","maxAge",
          "cohortLen","periodStudy","cohortNames","startPop","inputData",
          "sonPrefMx","sonPrefTheory","model","country",
          "sensitivity","fertMod","sonTheoPar")
-sfSource("Code/FunctionsSRB.R")
+
+sfSource("FunctionsSRB.R")
 
 # 5) Run simulations --------------------------------------
 Start <- Sys.time()
@@ -740,7 +741,7 @@ fertMod <- 1    # use “fertility5” (UN standard decline)
 sonTheoPar <- 1L
 
 # --- source function definitions ---
-source("Code/FunctionsSRB.R")
+source("FunctionsSRB.R")
 
 # 3) Load data & initialize -------------------------------
 inputData     <- get.data(country)
@@ -757,7 +758,7 @@ sfExport("iniYear","nsim","niter","srb","minAge","maxAge",
          "cohortLen","periodStudy","cohortNames","startPop","inputData",
          "sonPrefMx","sonPrefTheory","model","country",
          "sensitivity","fertMod","sonTheoPar")
-sfSource("Code/FunctionsSRB.R")
+sfSource("FunctionsSRB.R")
 
 # 5) Run simulations --------------------------------------
 Start <- Sys.time()
