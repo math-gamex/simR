@@ -113,8 +113,8 @@ cohortNames <- seq(iniYear-maxAge, iniYear+trunc(niter/cohortLen,0)*cohortLen, c
 ###########################################################
 
 # COUNTRY: Data from 2 countries are available to run the model: South Korea and India
-country <- "Korea"
-# country <- "India"
+#country <- "Korea"
+country <- "India"
 
 # INPUT DATA: Female Population, Fertility rates, and death rates
 inputData <- get.data(country)
