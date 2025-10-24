@@ -26,7 +26,7 @@ library(parallel)
 
 
 # Set the working directory for the code and the subfolders 'Data' and 'Sensitivity'
-setwd("/Users/kyounghunbae/Downloads/Appendix")
+setwd(".")
 
 # Source code with functions (should be in the working directory stated above)
 source("FunctionsSRB.R")
