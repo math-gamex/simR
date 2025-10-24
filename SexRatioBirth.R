@@ -75,7 +75,8 @@ sfExport("iniYear","nsim","niter","srb","minAge","maxAge",
          "cohortLen","periodStudy","cohortNames","startPop","inputData",
          "sonPrefMx","sonPrefTheory","model","country",
          "sensitivity","fertMod","sonTheoPar")
-sfSource("Code/FunctionsSRB.R")
+#sfSource("Code/FunctionsSRB.R")
+sfSource("FunctionsSRB.R")
 
 Start <- Sys.time()
 out <- sfLapply(1:ncpus, run.simulations)
