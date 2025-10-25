@@ -20,23 +20,153 @@ rm(list = ls())
 # Packages
 # install.packages("snowfall")
 # install.packages("parallel")
+# install.packages(c("snowfall","parallel","RColorBrewer"), Ncpus=2)
+
 library(snowfall)
 library(parallel)
-
-
 
 # Set the working directory for the code and the subfolders 'Data' and 'Sensitivity'
 setwd(".")
 
-# Source code with functions (should be in the working directory stated above)
-source("FunctionsSRB.R")
- 
+
+
+#### Try a testrun #######################################################################
+# Temporarily disable everything below this point
+if (FALSE) {
+## Define globals used by FunctionsSRB.R BEFORE sourcing it
+iniYear   <- 1980
+niter     <- 10              # for smoke test
+minAge    <- 15
+maxAge    <- 50
+cohortLen <- 5
+periodStudy <- seq(iniYear, iniYear + niter - 1, 1)
+cohortNames <- seq(iniYear - maxAge,
+                   iniYear + trunc(niter / cohortLen, 0) * cohortLen,
+                   cohortLen)
+
+sensitivity <- FALSE
+model <- "Empirical"
+country <- "Korea"
+
+iniPop    <- 50000
+startYear <- 1945
+nsim      <- 2
+srb       <- 0.5122
+
+alphaPar <- 0.075; gammaPar <- 0.20
+rhoPar   <- 0.50;  phiPar   <- 7
+sigmaPar <- 1.70;  betaPar  <- 0.20
+
+inputData     <- get.data(country)
+spData        <- funcSonPref(country)
+sonPrefMx     <- spData$sonPrefMx
+sonPrefTheory <- spData$sonPrefTheory
+startPop      <- initialization(iniPop, startYear)
+
+# Quick error fixes for a test run
+fertMod <- 1   # use the standard UN fertility schedule (“fertility5”)
+sonTheoPar <- 1L      # dummy value; only used in Theory mode
+
+#
+ncpus <- min(detectCores(), 2)
+sfInit(parallel = TRUE, cpus = ncpus)
+sfExport("iniYear","nsim","niter","srb","minAge","maxAge",
+         "alphaPar","gammaPar","rhoPar","phiPar","sigmaPar","betaPar",
+         "cohortLen","periodStudy","cohortNames","startPop","inputData",
+         "sonPrefMx","sonPrefTheory","model","country",
+         "sensitivity","fertMod","sonTheoPar")
+
+sfSource("FunctionsSRB.R")
+
+Start <- Sys.time()
+out <- sfLapply(1:ncpus, run.simulations)
+End <- Sys.time(); print(End-Start)
+sfStop()
+
+# dir.create("SimulationResults", showWarnings = FALSE)
+fileName <- "Korea_SMOKETEST"
+save(out, file = file.path("SimulationResults", paste0(fileName,".RData")))
+cat("Saved:", file.path("SimulationResults", paste0(fileName,".RData")), "\n")
+
+
+## Visual Check for Testrun ##
+# 1) Load your smoke-test results
+load("SimulationResults/Korea_SMOKETEST.RData")
+
+# 2) Build SRB and TFR matrices from 'out' (works for any niter)
+#    SRB in boys per 100 girls = p/(1-p) * 100, where p = propBoys
+srb_runs <- lapply(out, function(z) t((z$propBoys / (1 - z$propBoys)) * 100))
+srb_mat  <- do.call(rbind, srb_runs)
+
+# Years are the rownames of propBoys
+years <- as.integer(rownames(out[[1]]$propBoys))
+
+# TFR is either in $TFR (non-sensitivity) or embedded in fertilityData
+tfr_runs <- lapply(out, function(z) {
+  if (!is.null(z$TFR)) {
+    t(z$TFR)
+  } else {
+    # fallback if needed
+    t(z$fertilityData[, ncol(z$fertilityData), , drop = FALSE])
+  }
+})
+tfr_mat <- do.call(rbind, tfr_runs)
+
+# 3) Smooth and compute means/quantiles
+ma <- function(x, n=5) stats::filter(x, rep(1/n, n), sides = 2)
+
+srb_ma <- t(apply(srb_mat, 1, ma))
+tfr_ma <- t(apply(tfr_mat, 1, ma))
+
+srb_mean <- apply(srb_ma, 2, mean, na.rm = TRUE)
+srb_q10  <- apply(srb_ma, 2, quantile, 0.10, na.rm = TRUE)
+srb_q90  <- apply(srb_ma, 2, quantile, 0.90, na.rm = TRUE)
+
+tfr_mean <- apply(tfr_ma, 2, mean, na.rm = TRUE)
+tfr_q10  <- apply(tfr_ma, 2, quantile, 0.10, na.rm = TRUE)
+tfr_q90  <- apply(tfr_ma, 2, quantile, 0.90, na.rm = TRUE)
+
+# 4) Plots
+library(RColorBrewer)
+cols <- brewer.pal(8, "Greys")
+ni <- c(1, 2, length(years)-1, length(years))  # trim MA edge NAs if present
+ni <- ni[ni >= 1 & ni <= length(years)]        # guard for very short series
+
+# SRB
+plot(years, srb_mean, type = "n", ylim = c(104, 118),
+     xlab = "Year", ylab = "SRB (boys per 100 girls)", frame.plot = FALSE)
+grid(lwd = 2)
+if (length(years) > 4) {
+  polygon(c(years[-ni], rev(years[-ni])),
+          c(srb_q10[-ni], rev(srb_q90[-ni])),
+          col = cols[4], border = NA)
+}
+lines(years, srb_mean, lwd = 3, col = cols[7])
+title("South Korea — Simulated SRB (smoke test)")
+
+# TFR
+plot(years, tfr_mean, type = "n",
+     ylim = range(tfr_q10, tfr_q90, na.rm = TRUE),
+     xlab = "Year", ylab = "TFR", frame.plot = FALSE)
+grid(lwd = 2)
+if (length(years) > 4) {
+  polygon(c(years[-ni], rev(years[-ni])),
+          c(tfr_q10[-ni], rev(tfr_q90[-ni])),
+          col = cols[4], border = NA)
+}
+lines(years, tfr_mean, lwd = 3, col = cols[7])
+title("South Korea — Simulated TFR (smoke test)")
+
+### End of test run ############################################################ 
+}
+
+
 
 ###########################################################
 ### 2)  INITIAL PARAMETERS                              ###  
 ###########################################################
 
-# SENSITIVITY: TRUE to carry out sensitivity anlysis
+# SENSITIVITY: TRUE to carry out sensitivity analysis
 sensitivity <- FALSE
 # sensitivity <- TRUE
 
@@ -107,14 +237,16 @@ periodStudy <- seq(iniYear, iniYear + niter - 1, 1)
 cohortLen <- 5
 cohortNames <- seq(iniYear-maxAge, iniYear+trunc(niter/cohortLen,0)*cohortLen, cohortLen)
 
+# Source code 
+source("FunctionsSRB.R")
 
 ###########################################################
 ### 3)  DATA AND INITIAILIZATION OF THE MODEL           ###  
 ###########################################################
 
 # COUNTRY: Data from 2 countries are available to run the model: South Korea and India
-#country <- "Korea"
-country <- "India"
+country <- "Korea"
+# country <- "India"
 
 # INPUT DATA: Female Population, Fertility rates, and death rates
 inputData <- get.data(country)
@@ -206,7 +338,10 @@ sfStop()
 fileName <- "NameOfTheOuputFile"
 
 # Save Output of the Simulations in an RData file
-save(out, file = paste(fileName, ".RData", sep = ""))
+#save(out, file = paste(fileName, ".RData", sep = ""))
+
+save(out, file = file.path("SimulationResults", paste0(fileName,".RData")))
+cat("Saved:", file.path("SimulationResults", paste0(fileName,".RData")), "\n")
 
 
 ###########################################################
@@ -418,4 +553,3 @@ legend(x =2000, y = 120, col = "black",
                   expression(paste("Lower readiness (", sigma, "=1, ", beta, "=0)"))),
        cex = 0.7, bty = "n")
 #dev.off()
-

@@ -1,4 +1,4 @@
-name: Run SexRatioBirth_Fast
+name: Run SexRatioBirth
 
 on:
   workflow_dispatch:  # Actions 탭에서 수동 실행
@@ -41,8 +41,8 @@ jobs:
         run: mkdir -p SimulationResults
 
       # 시뮬 실행
-      - name: Run SexRatioBirth_Fast.R
-        run: Rscript SexRatioBirth_Fast.R
+      - name: Run SexRatioBirth_KR.R
+        run: Rscript SexRatioBirth_KR.R
         env:
           # 필요시 환경변수로 파라미터 전달 가능 (예: NSIM 등)
           # NSIM: "1000"
