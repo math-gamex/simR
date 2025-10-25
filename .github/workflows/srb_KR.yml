@@ -1,4 +1,4 @@
-name: Run SexRatioBirth
+name: Run SexRatioBirth KR
 
 on:
   workflow_dispatch:  # Actions 탭에서 수동 실행
