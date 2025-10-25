@@ -195,3 +195,4 @@ run_scenario <- function(model_i, country_i, nsim_i, niter_i, ncpus_i) {
 for (i in seq_along(model)) {
   run_scenario(model[i], country[i], nsim[i], niter[i], ncpus[i])
 }
+
